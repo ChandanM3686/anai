@@ -47,7 +47,7 @@ import requests
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
-import pandas_datareader as pdr
+
 
 def fetch_stock_news(ticker_symbol, days=7):
     """Fetch recent news for a stock using a financial news API"""
