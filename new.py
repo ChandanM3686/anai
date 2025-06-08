@@ -313,67 +313,67 @@ def send_email(recipient: str, subject: str, body: str) -> bool:
 # Add this function before the main() function
 
 def analyze_stock_with_gemini(stock_data: dict, stock_name: str) -> str:
-    """
-    Use Google Gen AI to generate a detailed analysis for the selected stock.
-    """
+    """Use Google Gen AI to generate a detailed analysis for the selected stock."""
     try:
-        # Get stock ticker symbol (you might need to map your stock names to ticker symbols)
-        ticker_symbol = stock_name  # This is a simplification - implement proper mapping
+        # Format ticker symbol correctly for yfinance
+        ticker_symbol = stock_name.strip()
+        if not (ticker_symbol.endswith('.NS') or ticker_symbol.endswith('.BO')):
+            ticker_symbol = f"{ticker_symbol}.NS"  # Default to NSE
         
         prompt = f"""
-Analyze {stock_name} based on:
+        Analyze {stock_name} (ticker: {ticker_symbol}) based on:
 
-• Basic Data:
-  - Quantity: {stock_data.get('Quantity')}
-  - Avg Price: ₹{stock_data.get('Avg. Price')}
-  - LTP: ₹{stock_data.get('LTP')}
-  - Invested: ₹{stock_data.get('Invested Value')}
-  - Current: ₹{stock_data.get('Current Value')}
-  - P/L: ₹{stock_data.get('Profit/Loss')}
-  - P/L %: {stock_data.get('Profit/Loss %')}
-  - Today's P/L: {stock_data.get('Todays Profit/Loss')}
-  - Today's P/L %: {stock_data.get('Todays Profit/Loss %')}
+        • Basic Data:
+          - Quantity: {stock_data.get('Quantity')}
+          - Avg Price: ₹{stock_data.get('Avg. Price')}
+          - LTP: ₹{stock_data.get('LTP')}
+          - Invested: ₹{stock_data.get('Invested Value')}
+          - Current: ₹{stock_data.get('Current Value')}
+          - P/L: ₹{stock_data.get('Current Value') - stock_data.get('Invested Value')}
+          - P/L %: {((stock_data.get('Current Value') - stock_data.get('Invested Value')) / stock_data.get('Invested Value') * 100) if stock_data.get('Invested Value') > 0 else 0:.2f}%
+          - Today's P/L: {stock_data.get('Todays Profit/Loss')}
+          - Today's P/L %: {stock_data.get('Todays Profit/Loss %')}
 
-• Latest News Impact:
-  - List 3 most significant recent news items
-  - Direct impact on stock price (positive/negative/neutral)
+        • Latest News Impact:
+          - List 3 most significant recent news items
+          - Direct impact on stock price (positive/negative/neutral)
 
-• Key Metrics:
-  - P/E ratio vs industry average
-  - Debt-to-Equity ratio
-  - ROE (>15% is good)
-  - Free Cash Flow trend
-  - Dividend yield
+        • Key Metrics:
+          - P/E ratio vs industry average
+          - Debt-to-Equity ratio
+          - ROE (>15% is good)
+          - Free Cash Flow trend
+          - Dividend yield
 
-• Technical Indicators:
-  - Support/Resistance levels
-  - 50/200-day MA trend
-  - RSI reading
-  - MACD signal
-  - Volume trend
+        • Technical Indicators:
+          - Support/Resistance levels
+          - 50/200-day MA trend
+          - RSI reading
+          - MACD signal
+          - Volume trend
 
-• Buffett Criteria (Rate 1-5):
-  - Business simplicity
-  - Economic moat strength
-  - Management quality
-  - Financial stability
-  - Margin of safety
-  - Long-term growth potential
+        • Buffett Criteria (Rate 1-5):
+          - Business simplicity
+          - Economic moat strength
+          - Management quality
+          - Financial stability
+          - Margin of safety
+          - Long-term growth potential
 
-• Risk Assessment:
-  - Sector risks
-  - Competition threats
-  - Regulatory concerns
-  - Volatility level
+        • Risk Assessment:
+          - Sector risks
+          - Competition threats
+          - Regulatory concerns
+          - Volatility level
 
-• Direct Recommendations:
-  - Buy/Sell/Hold with confidence level
-  - Target prices: 1M, 3M, 1Y
-  - Multibagger potential (Yes/No)
-  - Position sizing advice
+        • Direct Recommendations:
+          - Buy/Sell/Hold with confidence level
+          - Target prices: 1M, 3M, 1Y
+          - Multibagger potential (Yes/No)
+          - Position sizing advice
 
-Provide bullet points only. No explanations or theory. Just facts and direct recommendations.
-"""
+        Provide bullet points only. No explanations or theory. Just facts and direct recommendations.
+        """
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
@@ -407,7 +407,8 @@ def main():
                 total_current = df["Current Value"].sum()
                 st.metric("Current Value", f"₹{total_current:,.2f}")
             with col3:
-                total_profit = df["Profit/Loss"].sum()
+                # Calculate total profit/loss directly from the difference
+                total_profit = total_current - total_invested
                 profit_percent = (total_profit / total_invested) * 100 if total_invested > 0 else 0
                 st.metric(
                     "Overall Profit/Loss",
@@ -625,8 +626,21 @@ def fetch_live_prices_with_gemini(stock_symbols):
     Use Gemini to fetch live prices for a list of stock symbols
     """
     try:
+        # Clean up stock symbols by removing trailing spaces
+        cleaned_symbols = [symbol.strip() for symbol in stock_symbols]
+        
+        # Add proper suffix for Indian stocks if not already present
+        formatted_symbols = []
+        for symbol in cleaned_symbols:
+            if not (symbol.endswith('.NS') or symbol.endswith('.BO')):
+                # Default to NSE for Indian stocks
+                formatted_symbol = f"{symbol.strip()}.NS"
+            else:
+                formatted_symbol = symbol.strip()
+            formatted_symbols.append(formatted_symbol)
+            
         # Create a prompt for Gemini to fetch live prices
-        symbols_str = ", ".join(stock_symbols)
+        symbols_str = ", ".join(formatted_symbols)
         prompt = f"""
         Please provide the current live prices for the following stocks: {symbols_str}.
         Return the data in this exact format - a JSON object where keys are stock symbols and values are their current prices:
@@ -685,9 +699,14 @@ def track_daily_profits(df, days=30, use_gemini_for_live=True):
             avg_price = row['Avg. Price']
             quantity = row['Quantity']
             
+            # Format ticker symbol correctly for yfinance
+            ticker_symbol = stock_name.strip()
+            if not (ticker_symbol.endswith('.NS') or ticker_symbol.endswith('.BO')):
+                ticker_symbol = f"{ticker_symbol}.NS"  # Default to NSE
+            
             # Use yfinance to get historical data
             try:
-                ticker = yf.Ticker(stock_name)
+                ticker = yf.Ticker(ticker_symbol)
                 hist = ticker.history(start=start_date, end=end_date)
                 
                 if not hist.empty:
