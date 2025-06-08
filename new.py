@@ -16,11 +16,7 @@ from plotly.subplots import make_subplots
 # Use the new Google Gen AI SDK
 
 # Load API key from environment variable if not in secrets
-api_key = st.secrets.get("GOOGLE_GENAI_API_KEY")
-if not api_key:
-    st.error("Google Generative AI API key not found. Please set it in .streamlit/secrets.toml or as environment variable.")
-    st.stop()
-genai.configure(api_key=api_key)
+genai.configure(api_key="AIzaSyB5Jw-XclWu8jlQdvP83QTkL1Z89P72QSE")
 
 
 # Initialize the model
