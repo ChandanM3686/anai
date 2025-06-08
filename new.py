@@ -13,10 +13,8 @@ from plotly.subplots import make_subplots
 
 # ------------------ Configuration ------------------ #
 
-# Use the new Google Gen AI SDK
+api_key = st.secrets.get("GOOGLE_GENAI_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
 
-# Load API key from environment variable if not in secrets
-genai.configure(api_key="AIzaSyB5Jw-XclWu8jlQdvP83QTkL1Z89P72QSE")
 
 
 # Initialize the model
